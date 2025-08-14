@@ -3,51 +3,60 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ESP32 OLED — Web UI</title>
+<title>ESP32 OLED — Web UI (WSS)</title>
 <style>
-  body{font-family:Arial;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f3f4f6}
-  .ui{background:#fff;padding:20px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.08);width:min(420px,92%)}
+  body{font-family:Arial;margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#f3f4f6}
+  .card{background:#fff;padding:18px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.08);width:min(480px,92%)}
   input{width:100%;padding:12px;border-radius:8px;border:1px solid #ddd;font-size:16px}
-  .meta{font-size:13px;color:#666;margin-top:8px}
+  #st{font-size:13px;color:#666;margin-top:8px}
 </style>
 </head>
 <body>
-<div class="ui">
-  <h3>ESP32 OLED — Realtime MQTT</h3>
+<div class="card">
+  <h3>ESP32 OLED — Realtime (WSS)</h3>
   <input id="txt" placeholder="Gõ sẽ gửi realtime..." autocomplete="off"/>
-  <div class="meta" id="st">Kết nối tới broker...</div>
+  <div id="st">Connecting to broker...</div>
 </div>
 
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script>
+const TOPIC = "esp32/oled/a4ee2732bb"; // <-- THAY CHO CHÍNH XÁC: ví dụ "esp32/oled/3f9a7b"
+// HiveMQ public WSS (suitable for pages served over HTTPS)
 const BROKER = "wss://broker.hivemq.com:8884/mqtt";
-let TOPIC = "esp32/oled/a4ee2732bb"; // sẽ đổi thành topic bí mật ở bước sau
 const statusEl = document.getElementById('st');
-const input = document.getElementById('txt');
+const inputEl = document.getElementById('txt');
 
-const client = mqtt.connect(BROKER, { keepalive: 10, reconnectPeriod: 1000, clientId: "webui_"+Math.random().toString(16).slice(2,10) });
-
-client.on('connect', ()=> statusEl.textContent = "Đã kết nối: " + BROKER);
-client.on('reconnect', ()=> statusEl.textContent = "Đang kết nối lại...");
-client.on('error', (e)=> statusEl.textContent = "Lỗi kết nối: " + (e && e.message ? e.message : e));
-client.on('close', ()=> statusEl.textContent = "Kết nối đóng");
-
-// debounce và publish
-let t;
-input.addEventListener('input', ()=> {
-  clearTimeout(t);
-  t = setTimeout(()=> {
-    if (client && client.connected) {
-      client.publish(TOPIC, input.value, {qos:0});
-      statusEl.textContent = input.value ? ("Gửi: " + (input.value.length>40 ? input.value.slice(0,40)+"..." : input.value)) : "Gửi: (clear)";
-    } else {
-      statusEl.textContent = "Chưa kết nối MQTT";
-    }
-  }, 40);
+// connect with short keepalive & quick reconnect
+const client = mqtt.connect(BROKER, {
+  keepalive: 10,
+  reconnectPeriod: 1000,
+  connectTimeout: 4000,
+  clientId: "webui_"+Math.random().toString(16).slice(2,8)
 });
 
-// helper: allow changing TOPIC from console for quick test
-window.setTopic = (s)=> { TOPIC = s; console.log("TOPIC set to", s); }
+client.on('connect', ()=> statusEl.textContent = "Connected to broker (WSS)");
+client.on('reconnect', ()=> statusEl.textContent = "Reconnecting...");
+client.on('close', ()=> statusEl.textContent = "Connection closed");
+client.on('error', (err)=> statusEl.textContent = "MQTT error: " + (err && err.message ? err.message : err));
+
+function publishNow(v){
+  if(client && client.connected){
+    client.publish(TOPIC, v, {qos:0, retain:false});
+    statusEl.textContent = v ? ("Sent: " + (v.length>40 ? v.slice(0,40)+"..." : v)) : "Sent: (clear)";
+  } else {
+    statusEl.textContent = "Not connected";
+  }
+}
+
+// debounce small (20ms) for realtime but not spam
+let t;
+inputEl.addEventListener('input', ()=> {
+  clearTimeout(t);
+  t = setTimeout(()=> publishNow(inputEl.value), 20);
+});
+
+// helper to change topic from console if needed:
+// window.setTopic("esp32/oled/newsecret");
 </script>
 </body>
 </html>
