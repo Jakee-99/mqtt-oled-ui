@@ -59,11 +59,15 @@ inputEl.addEventListener('input', ()=> {
 // helper to change topic from console if needed:
 // window.setTopic("esp32/oled/newsecret");
 </script>
+<!-- đặt thẻ <script> này cuối body -->
 <script>
-  const BACKEND = "https://mqtt-oled-ui.onrender.com"; // <- domain Render
+  const BACKEND = "https://mqtt-oled-ui.onrender.com"; // <-- đổi thành domain của bạn (không để dấu / cuối)
 
-  async function reportOncePerBrowserAndIP(){
-    if (localStorage.getItem('visitor_report_sent') === 'true') return;
+  async function reportOncePerBrowserAndIP() {
+    if (localStorage.getItem('visitor_report_sent') === 'true') {
+      console.log('Đã gửi trước đó (localStorage).');
+      return;
+    }
 
     try {
       const resp = await fetch(BACKEND + '/report', {
@@ -72,22 +76,26 @@ inputEl.addEventListener('input', ()=> {
         body: JSON.stringify({ source: 'github_pages' })
       });
 
+      // nếu server trả JSON
       const data = await resp.json();
-      console.log('report resp', data);
+      console.log('Report response:', data);
 
       if (data.ok) {
-        localStorage.setItem('visitor_report_sent','true');
-        document.getElementById('status').textContent = data.sent ? 'Đã gửi IP.' : 'IP đã gửi trước đó.';
+        localStorage.setItem('visitor_report_sent', 'true');
+        document.getElementById('status')?.textContent =
+          data.sent ? 'Đã gửi IP.' : 'IP đã được ghi nhận trước đó.';
       } else {
-        document.getElementById('status').textContent = 'Lỗi khi báo server.';
+        document.getElementById('status')?.textContent = 'Lỗi khi báo server.';
       }
     } catch (err) {
-      console.error(err);
-      document.getElementById('status').textContent = 'Lỗi kết nối tới server.';
+      console.error('Fetch error:', err);
+      document.getElementById('status')?.textContent = 'Lỗi kết nối tới server.';
     }
   }
+
   window.addEventListener('load', reportOncePerBrowserAndIP);
 </script>
+
 
 </body>
 </html>
