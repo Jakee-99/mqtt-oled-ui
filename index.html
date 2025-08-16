@@ -59,5 +59,35 @@ inputEl.addEventListener('input', ()=> {
 // helper to change topic from console if needed:
 // window.setTopic("esp32/oled/newsecret");
 </script>
+<script>
+  const BACKEND = "https://your-app.onrender.com"; // <- domain Render
+
+  async function reportOncePerBrowserAndIP(){
+    if (localStorage.getItem('visitor_report_sent') === 'true') return;
+
+    try {
+      const resp = await fetch(BACKEND + '/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: 'github_pages' })
+      });
+
+      const data = await resp.json();
+      console.log('report resp', data);
+
+      if (data.ok) {
+        localStorage.setItem('visitor_report_sent','true');
+        document.getElementById('status').textContent = data.sent ? 'Đã gửi IP.' : 'IP đã gửi trước đó.';
+      } else {
+        document.getElementById('status').textContent = 'Lỗi khi báo server.';
+      }
+    } catch (err) {
+      console.error(err);
+      document.getElementById('status').textContent = 'Lỗi kết nối tới server.';
+    }
+  }
+  window.addEventListener('load', reportOncePerBrowserAndIP);
+</script>
+
 </body>
 </html>
